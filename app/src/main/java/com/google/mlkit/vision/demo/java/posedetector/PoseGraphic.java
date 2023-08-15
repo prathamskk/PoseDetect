@@ -16,13 +16,18 @@
 
 package com.google.mlkit.vision.demo.java.posedetector;
 
+import static java.lang.Math.atan2;
+
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PointF;
+import android.text.TextUtils;
+
 import androidx.annotation.Nullable;
 import com.google.mlkit.vision.demo.GraphicOverlay;
 import com.google.mlkit.vision.demo.GraphicOverlay.Graphic;
+import com.google.mlkit.vision.demo.InferenceInfoGraphic;
 import com.google.mlkit.vision.pose.Pose;
 import com.google.mlkit.vision.pose.PoseLandmark;
 import java.util.List;
@@ -39,6 +44,7 @@ public class PoseGraphic extends Graphic {
   private final Paint leftPaint;
   private final Paint rightPaint;
   private final Paint whitePaint;
+  private final Paint tipPaint;
 
   PoseGraphic(GraphicOverlay overlay, Pose pose, boolean showInFrameLikelihood) {
     super(overlay);
@@ -53,6 +59,9 @@ public class PoseGraphic extends Graphic {
     leftPaint.setColor(Color.GREEN);
     rightPaint = new Paint();
     rightPaint.setColor(Color.YELLOW);
+    tipPaint = new Paint();
+    tipPaint.setColor(Color.WHITE);
+    tipPaint.setTextSize(40f);
   }
 
   @Override
@@ -95,6 +104,62 @@ public class PoseGraphic extends Graphic {
     PoseLandmark rightHeel = pose.getPoseLandmark(PoseLandmark.Type.RIGHT_HEEL);
     PoseLandmark leftFootIndex = pose.getPoseLandmark(PoseLandmark.Type.LEFT_FOOT_INDEX);
     PoseLandmark rightFootIndex = pose.getPoseLandmark(PoseLandmark.Type.RIGHT_FOOT_INDEX);
+    // Calculate whether the hand exceeds the shoulder
+    float yRightHand = rightWrist.getPosition().y - rightShoulder.getPosition().y;
+    float yLeftHand = leftWrist.getPosition().y - leftShoulder.getPosition().y;
+
+// Calculate whether the distance between the shoulder and the foot is the same width
+    float shoulderDistance = leftShoulder.getPosition().x - rightShoulder.getPosition().x;
+    float footDistance = leftAnkle.getPosition().x - rightAnkle.getPosition().x;
+    float ratio = footDistance / shoulderDistance;
+
+// Angle of point 24-26-28
+    double angle24_26_28 = getAngle(rightHip, rightKnee, rightAnkle);
+
+    if (((180 - Math.abs(angle24_26_28)) > 5) && !isCount) {
+      reInitParams();
+      lineOneText = "Please stand up straight";
+    } else if (yLeftHand > 0 || yRightHand > 0) {
+      reInitParams();
+      lineOneText = "Please hold your hands behind your head";
+    } else if (ratio < 0.5 && !isCount) {
+      reInitParams();
+      lineOneText = "Please spread your feet shoulder-width apart";
+    } else {
+      float currentHeight = (rightShoulder.getPosition().y + leftShoulder.getPosition().y) / 2;
+
+      if (!isCount) {
+        shoulderHeight = currentHeight;
+        minSize = (rightAnkle.getPosition().y - rightHip.getPosition().y) / 5;
+        isCount = true;
+        lastHeight = currentHeight;
+        lineOneText = "Gesture ready";
+      }
+      if (!isDown && (currentHeight - lastHeight) > minSize) {
+        isDown = true;
+        isUp = false;
+        downCount++;
+        lastHeight = currentHeight;
+        lineTwoText = "start down";
+      } else if ((currentHeight - lastHeight) > minSize) {
+        lineTwoText = "downing";
+        lastHeight = currentHeight;
+      }
+      if (!isUp && (upCount < downCount) && (lastHeight - currentHeight) > minSize) {
+        isUp = true;
+        isDown = false;
+        upCount++;
+        lastHeight = currentHeight;
+        lineTwoText = "start up";
+      } else if ((lastHeight - currentHeight) > minSize) {
+        lineTwoText = "uping";
+        lastHeight = currentHeight;
+      }
+    }
+
+    drawText(canvas, lineOneText, 1);
+    drawText(canvas, lineTwoText, 2);
+    drawText(canvas, "count: " + upCount, 3);
 
     drawLine(canvas, leftShoulder.getPosition(), rightShoulder.getPosition(), whitePaint);
     drawLine(canvas, leftHip.getPosition(), rightHip.getPosition(), whitePaint);
@@ -137,5 +202,46 @@ public class PoseGraphic extends Graphic {
     }
     canvas.drawLine(
         translateX(start.x), translateY(start.y), translateX(end.x), translateY(end.y), paint);
+  }
+
+  public void drawText(Canvas canvas, String text, int line) {
+    if (TextUtils.isEmpty(text)) {
+      return;
+    }
+    canvas.drawText(text, InferenceInfoGraphic.TEXT_SIZE * 0.5f,
+            InferenceInfoGraphic.TEXT_SIZE * 3 + InferenceInfoGraphic.TEXT_SIZE * line, tipPaint);
+  }
+
+  private static boolean isUp = false;
+  private static boolean isDown = false;
+  private static int upCount = 0;
+  private static int downCount = 0;
+  private static boolean isCount = false;
+  private static String lineOneText = "";
+  private static String lineTwoText = "";
+  private static float shoulderHeight = 0f;
+  private static float minSize = 0f;
+  private static float lastHeight = 0f;
+  public void reInitParams() {
+    lineOneText = "";
+    lineTwoText = "";
+    shoulderHeight = 0f;
+    minSize = 0f;
+    isCount = false;
+    isUp = false;
+    isDown = false;
+    upCount = 0;
+    downCount = 0;
+  }
+  private double getAngle(PoseLandmark firstPoint, PoseLandmark midPoint, PoseLandmark lastPoint) {
+    double result = Math.toDegrees(atan2(1.0 * lastPoint.getPosition().y - midPoint.getPosition().y,
+            1.0 * lastPoint.getPosition().x - midPoint.getPosition().x)
+            - atan2(firstPoint.getPosition().y - midPoint.getPosition().y,
+            firstPoint.getPosition().x - midPoint.getPosition().x));
+    result = Math.abs(result);
+    if (result > 180) {
+      result = 360.0 - result;
+    }
+    return result;
   }
 }
