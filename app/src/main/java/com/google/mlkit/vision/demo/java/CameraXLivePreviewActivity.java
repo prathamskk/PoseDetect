@@ -58,21 +58,10 @@ import com.google.mlkit.vision.demo.CameraXViewModel;
 import com.google.mlkit.vision.demo.GraphicOverlay;
 import com.google.mlkit.vision.demo.R;
 import com.google.mlkit.vision.demo.VisionImageProcessor;
-import com.google.mlkit.vision.demo.java.automl.AutoMLImageLabelerProcessor;
-import com.google.mlkit.vision.demo.java.barcodescanner.BarcodeScannerProcessor;
-import com.google.mlkit.vision.demo.java.facedetector.FaceDetectorProcessor;
-import com.google.mlkit.vision.demo.java.labeldetector.LabelDetectorProcessor;
-import com.google.mlkit.vision.demo.java.objectdetector.ObjectDetectorProcessor;
 import com.google.mlkit.vision.demo.java.posedetector.PoseDetectorProcessor;
-import com.google.mlkit.vision.demo.java.textdetector.TextRecognitionProcessor;
 import com.google.mlkit.vision.demo.preference.PreferenceUtils;
 import com.google.mlkit.vision.demo.preference.SettingsActivity;
 import com.google.mlkit.vision.demo.preference.SettingsActivity.LaunchSource;
-import com.google.mlkit.vision.face.FaceDetectorOptions;
-import com.google.mlkit.vision.label.custom.CustomImageLabelerOptions;
-import com.google.mlkit.vision.label.defaults.ImageLabelerOptions;
-import com.google.mlkit.vision.objects.custom.CustomObjectDetectorOptions;
-import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions;
 import com.google.mlkit.vision.pose.PoseDetectorOptions;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,15 +75,6 @@ public final class CameraXLivePreviewActivity extends AppCompatActivity
         CompoundButton.OnCheckedChangeListener {
   private static final String TAG = "CameraXLivePreview";
   private static final int PERMISSION_REQUESTS = 1;
-
-  private static final String OBJECT_DETECTION = "Object Detection";
-  private static final String OBJECT_DETECTION_CUSTOM = "Custom Object Detection (Bird)";
-  private static final String FACE_DETECTION = "Face Detection";
-  private static final String TEXT_RECOGNITION = "Text Recognition";
-  private static final String BARCODE_SCANNING = "Barcode Scanning";
-  private static final String IMAGE_LABELING = "Image Labeling";
-  private static final String IMAGE_LABELING_CUSTOM = "Custom Image Labeling (Bird)";
-  private static final String AUTOML_LABELING = "AutoML Image Labeling";
   private static final String POSE_DETECTION = "Pose Detection";
 
   private static final String STATE_SELECTED_MODEL = "selected_model";
@@ -109,7 +89,7 @@ public final class CameraXLivePreviewActivity extends AppCompatActivity
   @Nullable private VisionImageProcessor imageProcessor;
   private boolean needUpdateGraphicOverlayImageSourceInfo;
 
-  private String selectedModel = OBJECT_DETECTION;
+  private String selectedModel = POSE_DETECTION;
   private int lensFacing = CameraSelector.LENS_FACING_BACK;
   private CameraSelector cameraSelector;
 
@@ -129,7 +109,7 @@ public final class CameraXLivePreviewActivity extends AppCompatActivity
     }
 
     if (savedInstanceState != null) {
-      selectedModel = savedInstanceState.getString(STATE_SELECTED_MODEL, OBJECT_DETECTION);
+      selectedModel = savedInstanceState.getString(STATE_SELECTED_MODEL, POSE_DETECTION);
       lensFacing = savedInstanceState.getInt(STATE_LENS_FACING, CameraSelector.LENS_FACING_BACK);
     }
     cameraSelector = new CameraSelector.Builder().requireLensFacing(lensFacing).build();
@@ -146,14 +126,6 @@ public final class CameraXLivePreviewActivity extends AppCompatActivity
 
     Spinner spinner = findViewById(R.id.spinner);
     List<String> options = new ArrayList<>();
-    options.add(OBJECT_DETECTION);
-    options.add(OBJECT_DETECTION_CUSTOM);
-    options.add(FACE_DETECTION);
-    options.add(TEXT_RECOGNITION);
-    options.add(BARCODE_SCANNING);
-    options.add(IMAGE_LABELING);
-    options.add(IMAGE_LABELING_CUSTOM);
-    options.add(AUTOML_LABELING);
     options.add(POSE_DETECTION);
     // Creating adapter for spinner
     ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
@@ -322,53 +294,6 @@ public final class CameraXLivePreviewActivity extends AppCompatActivity
 
     try {
       switch (selectedModel) {
-        case OBJECT_DETECTION:
-          Log.i(TAG, "Using Object Detector Processor");
-          ObjectDetectorOptions objectDetectorOptions =
-              PreferenceUtils.getObjectDetectorOptionsForLivePreview(this);
-          imageProcessor = new ObjectDetectorProcessor(this, objectDetectorOptions);
-          break;
-        case OBJECT_DETECTION_CUSTOM:
-          Log.i(TAG, "Using Custom Object Detector (Bird) Processor");
-          LocalModel localModel =
-              new LocalModel.Builder()
-                  .setAssetFilePath("custom_models/bird_classifier.tflite")
-                  .build();
-          CustomObjectDetectorOptions customObjectDetectorOptions =
-              PreferenceUtils.getCustomObjectDetectorOptionsForLivePreview(this, localModel);
-          imageProcessor = new ObjectDetectorProcessor(this, customObjectDetectorOptions);
-          break;
-        case TEXT_RECOGNITION:
-          Log.i(TAG, "Using on-device Text recognition Processor");
-          imageProcessor = new TextRecognitionProcessor(this);
-          break;
-        case FACE_DETECTION:
-          Log.i(TAG, "Using Face Detector Processor");
-          FaceDetectorOptions faceDetectorOptions =
-              PreferenceUtils.getFaceDetectorOptionsForLivePreview(this);
-          imageProcessor = new FaceDetectorProcessor(this, faceDetectorOptions);
-          break;
-        case BARCODE_SCANNING:
-          Log.i(TAG, "Using Barcode Detector Processor");
-          imageProcessor = new BarcodeScannerProcessor(this);
-          break;
-        case IMAGE_LABELING:
-          Log.i(TAG, "Using Image Label Detector Processor");
-          imageProcessor = new LabelDetectorProcessor(this, ImageLabelerOptions.DEFAULT_OPTIONS);
-          break;
-        case IMAGE_LABELING_CUSTOM:
-          Log.i(TAG, "Using Custom Image Label (Bird) Detector Processor");
-          LocalModel localClassifier =
-              new LocalModel.Builder()
-                  .setAssetFilePath("custom_models/bird_classifier.tflite")
-                  .build();
-          CustomImageLabelerOptions customImageLabelerOptions =
-              new CustomImageLabelerOptions.Builder(localClassifier).build();
-          imageProcessor = new LabelDetectorProcessor(this, customImageLabelerOptions);
-          break;
-        case AUTOML_LABELING:
-          imageProcessor = new AutoMLImageLabelerProcessor(this);
-          break;
         case POSE_DETECTION:
           PoseDetectorOptions poseDetectorOptions =
               PreferenceUtils.getPoseDetectorOptionsForLivePreview(this);
