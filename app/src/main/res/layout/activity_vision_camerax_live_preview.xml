@@ -43,10 +43,10 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_gravity="center_vertical"
-        android:background="@layout/toggle_style"
+        android:background="@drawable/ic_switch_camera_white_48dp"
         android:checked="false"
         android:textOff=""
-        android:textOn=""/>
+        android:textOn="" />
 
     <Spinner
         android:id="@+id/spinner"
